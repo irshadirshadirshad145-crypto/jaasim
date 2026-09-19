@@ -7,8 +7,11 @@ import {
   Menu,
   RotateCcw,
   Download,
+  LogOut,
+  LogIn,
+  ShieldCheck,
 } from 'lucide-react';
-import { ShiftSetupConfig } from '../types';
+import { ShiftSetupConfig, AuthUserProfile } from '../types';
 
 interface HeaderProps {
   config: ShiftSetupConfig;
@@ -17,6 +20,9 @@ interface HeaderProps {
   onQuickReset?: () => void;
   onDownloadPdf?: () => void;
   onToggleMobileSidebar?: () => void;
+  currentUser?: AuthUserProfile | null;
+  onLoginClick?: () => void;
+  onLogoutClick?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +32,9 @@ export const Header: React.FC<HeaderProps> = ({
   onQuickReset,
   onDownloadPdf,
   onToggleMobileSidebar,
+  currentUser,
+  onLoginClick,
+  onLogoutClick,
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
 
@@ -154,6 +163,67 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
+            )}
+
+            {/* 4. USER PROFILE & AUTHENTICATION AREA */}
+            {currentUser ? (
+              <div
+                id="header-user-profile-area"
+                className="flex items-center space-x-2 pl-2 sm:pl-3 border-l border-slate-800"
+              >
+                <div
+                  className="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs shadow-2xs"
+                  title={`Signed in as ${currentUser.name} (${currentUser.email})`}
+                >
+                  <div className="w-6 h-6 rounded-md bg-indigo-600/80 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div className="hidden lg:flex flex-col text-left leading-none">
+                    <span className="text-2xs font-semibold text-slate-200 truncate max-w-[110px]">
+                      {currentUser.name}
+                    </span>
+                    <span className="text-3xs text-slate-400 font-mono mt-0.5 truncate max-w-[110px]">
+                      {currentUser.email}
+                    </span>
+                  </div>
+                  {currentUser.isLocalDemo && (
+                    <span className="hidden xl:inline text-3xs px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
+                      Sandbox
+                    </span>
+                  )}
+                </div>
+
+                {onLogoutClick && (
+                  <button
+                    type="button"
+                    id="header-logout-btn"
+                    onClick={onLogoutClick}
+                    title="Log Out of Supabase Auth"
+                    className="inline-flex items-center space-x-1 p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                    aria-label="Log Out"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span className="hidden xl:inline text-2xs font-medium">Logout</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div
+                id="header-user-profile-area"
+                className="flex items-center space-x-2 pl-2 sm:pl-3 border-l border-slate-800"
+              >
+                {onLoginClick && (
+                  <button
+                    type="button"
+                    id="header-login-btn"
+                    onClick={onLoginClick}
+                    className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition-colors shadow-2xs"
+                  >
+                    <LogIn className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
+                    <span>Sign In</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

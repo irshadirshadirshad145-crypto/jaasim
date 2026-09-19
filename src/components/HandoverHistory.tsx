@@ -36,16 +36,18 @@ import {
 } from '../services/supabaseService';
 import { getSupabaseCredentials } from '../utils/supabaseClient';
 import { exportHandoverToPdf } from '../utils/pdfExporter';
-import { EditableHandoverData, HandoverCategory } from '../types';
+import { EditableHandoverData, HandoverCategory, AuthUserProfile } from '../types';
 
 interface HandoverHistoryProps {
   onNavigateToHandover?: () => void;
   showToast: (msg: string) => void;
+  currentUser?: AuthUserProfile | null;
 }
 
 export const HandoverHistory: React.FC<HandoverHistoryProps> = ({
   onNavigateToHandover,
   showToast,
+  currentUser,
 }) => {
   const [handovers, setHandovers] = useState<SupabaseHandoverRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -206,7 +208,14 @@ export const HandoverHistory: React.FC<HandoverHistoryProps> = ({
         </div>
 
         {/* Status indicator & Refresh */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {currentUser && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+              <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+              <span>Operator: {currentUser.name}</span>
+            </div>
+          )}
+
           {credentials.isConfigured ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <Cloud className="w-3.5 h-3.5" />

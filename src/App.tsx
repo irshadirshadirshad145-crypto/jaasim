@@ -9,6 +9,13 @@ import { ExportView } from './components/ExportView';
 import { ValidationView } from './components/ValidationView';
 import { AdminPanel } from './components/AdminPanel';
 import { HandoverHistory } from './components/HandoverHistory';
+import { LoginPage } from './components/auth/LoginPage';
+import { SignUpPage } from './components/auth/SignUpPage';
+import {
+  initializeAuth,
+  subscribeToAuth,
+  logoutUser,
+} from './services/authService';
 import {
   INITIAL_MOCK_EVENTS,
   PREVIOUS_SHIFT_UNRESOLVED_EVENTS,
@@ -26,6 +33,7 @@ import {
   EditableHandoverItem,
   ShiftEvent,
   AppPage,
+  AuthUserProfile,
 } from './types';
 import { isWithinShift, formatDateTimeDisplay } from './utils/dateUtils';
 import { generateHandoverNote } from './utils/handoverGenerator';
@@ -41,6 +49,19 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUserProfile | null>(null);
+  const [authNoticeMessage, setAuthNoticeMessage] = useState<string | undefined>(undefined);
+
+  // Initialize and listen to Supabase Auth state
+  useEffect(() => {
+    initializeAuth().then((user) => {
+      setCurrentUser(user);
+    });
+    const unsubscribe = subscribeToAuth((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -238,6 +259,43 @@ export default function App() {
 
   const activeSourceCount = Object.values(config.selectedSources).filter(Boolean).length;
 
+  const handleNavigate = (page: AppPage) => {
+    // Protect user-specific history page if not authenticated
+    if (page === 'history' && !currentUser) {
+      setAuthNoticeMessage('Please sign in to access your saved shift handovers and user-specific cloud archives.');
+      setCurrentPage('login');
+      setIsMobileSidebarOpen(false);
+      return;
+    }
+    setAuthNoticeMessage(undefined);
+    setCurrentPage(page);
+    setIsMobileSidebarOpen(false);
+  };
+
+  const handleLoginSuccess = () => {
+    showToast('Signed in successfully with Supabase Auth.');
+    if (authNoticeMessage) {
+      setCurrentPage('history');
+    } else {
+      setCurrentPage('dashboard');
+    }
+    setAuthNoticeMessage(undefined);
+  };
+
+  const handleSignUpSuccess = () => {
+    showToast('Operator account registered successfully.');
+    setCurrentPage('dashboard');
+    setAuthNoticeMessage(undefined);
+  };
+
+  const handleLogout = async () => {
+    await logoutUser();
+    showToast('Signed out of Supabase Auth.');
+    if (currentPage === 'history') {
+      setCurrentPage('dashboard');
+    }
+  };
+
   return (
     <div className="h-screen h-[100dvh] w-full bg-slate-950 text-slate-100 font-sans flex flex-col overflow-hidden selection:bg-indigo-500 selection:text-white">
       {/* Toast Notification */}
@@ -258,6 +316,12 @@ export default function App() {
         onQuickReset={handleReset}
         onDownloadPdf={handleQuickDownloadPdf}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+        currentUser={currentUser}
+        onLoginClick={() => {
+          setAuthNoticeMessage(undefined);
+          setCurrentPage('login');
+        }}
+        onLogoutClick={handleLogout}
       />
 
       {/* App Body: Fixed Left Sidebar + Scrollable Main Content */}
@@ -265,15 +329,14 @@ export default function App() {
         {/* 2. FIXED LEFT SIDEBAR NAVIGATION */}
         <Sidebar
           currentPage={currentPage}
-          onNavigate={(page) => {
-            setCurrentPage(page);
-            setIsMobileSidebarOpen(false);
-          }}
+          onNavigate={handleNavigate}
           synthesizedCount={processingResult.activities.length}
           config={config}
           isOpenMobile={isMobileSidebarOpen}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
           carriedCount={processingResult.stats.carriedForwardCount}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
 
         {/* Dynamic Main Content Area - Full Vertical Scrollability from Top to Bottom */}
@@ -283,6 +346,25 @@ export default function App() {
             className="flex-1 w-full h-full min-h-0 overflow-y-auto overflow-x-hidden bg-slate-950 p-4 sm:p-6 lg:p-8 pb-28 focus:outline-none"
           >
             <div className="max-w-7xl mx-auto space-y-6 w-full">
+              {/* AUTH: LOGIN PAGE */}
+              {currentPage === 'login' && (
+                <LoginPage
+                  onSuccess={handleLoginSuccess}
+                  onNavigateToSignUp={() => setCurrentPage('signup')}
+                  onCancelToApp={() => setCurrentPage('dashboard')}
+                  noticeMessage={authNoticeMessage}
+                />
+              )}
+
+              {/* AUTH: SIGN UP PAGE */}
+              {currentPage === 'signup' && (
+                <SignUpPage
+                  onSuccess={handleSignUpSuccess}
+                  onNavigateToLogin={() => setCurrentPage('login')}
+                  onCancelToApp={() => setCurrentPage('dashboard')}
+                />
+              )}
+
               {/* PAGE 1: DASHBOARD */}
               {currentPage === 'dashboard' && (
                 <DashboardView
@@ -290,7 +372,7 @@ export default function App() {
                   processingResult={processingResult}
                   events={events}
                   inShiftEvents={inShiftEvents}
-                  onNavigate={(p) => setCurrentPage(p)}
+                  onNavigate={handleNavigate}
                   onToggleSource={handleToggleSource}
                 />
               )}
@@ -334,16 +416,26 @@ export default function App() {
                   config={config}
                   onBackToReview={() => setCurrentPage('review')}
                   onGenerateAgain={handleGenerateAgain}
-                  onViewHistory={() => setCurrentPage('history')}
+                  onViewHistory={() => handleNavigate('history')}
                 />
               )}
 
-              {/* PAGE 5: HANDOVER HISTORY & CLOUD ARCHIVE */}
+              {/* PAGE 5: HANDOVER HISTORY & CLOUD ARCHIVE (Protected) */}
               {currentPage === 'history' && (
-                <HandoverHistory
-                  onNavigateToHandover={() => setCurrentPage('handover')}
-                  showToast={showToast}
-                />
+                currentUser ? (
+                  <HandoverHistory
+                    currentUser={currentUser}
+                    onNavigateToHandover={() => setCurrentPage('handover')}
+                    showToast={showToast}
+                  />
+                ) : (
+                  <LoginPage
+                    onSuccess={handleLoginSuccess}
+                    onNavigateToSignUp={() => setCurrentPage('signup')}
+                    onCancelToApp={() => setCurrentPage('dashboard')}
+                    noticeMessage="Please sign in to access your saved shift handovers and user-specific cloud archives."
+                  />
+                )
               )}
 
               {/* PAGE 6: EXPORT */}

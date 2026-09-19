@@ -180,18 +180,67 @@ export async function signInWithSupabase(email: string, password: string): Promi
 }
 
 /**
- * Optional Auth: Sign up with Email and Password
+ * Optional Auth: Sign up with Email and Password (supports both (name, email, password) and (email, password))
  */
-export async function signUpWithSupabase(email: string, password: string): Promise<{ success: boolean; message: string; user?: User }> {
+export async function signUpWithSupabase(
+  nameOrEmail: string,
+  emailOrPassword: string,
+  optionalPassword?: string
+): Promise<{ success: boolean; message: string; user?: User }> {
+  const client = getSupabaseClient();
+  if (!client) return { success: false, message: 'Supabase client is not configured.' };
+
+  let name = '';
+  let email = '';
+  let password = '';
+
+  if (optionalPassword !== undefined) {
+    name = nameOrEmail.trim();
+    email = emailOrPassword.trim();
+    password = optionalPassword;
+  } else {
+    email = nameOrEmail.trim();
+    password = emailOrPassword;
+    name = email.split('@')[0];
+  }
+
+  try {
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          full_name: name,
+        },
+      },
+    });
+    if (error) return { success: false, message: error.message };
+    return {
+      success: true,
+      message: data.session ? 'Account created and signed in successfully' : 'Confirmation email sent. Please check your inbox.',
+      user: data.user ?? undefined,
+    };
+  } catch (err: unknown) {
+    return { success: false, message: err instanceof Error ? err.message : 'Registration failed' };
+  }
+}
+
+/**
+ * Optional Auth: Reset password for email
+ */
+export async function resetPasswordWithSupabase(email: string): Promise<{ success: boolean; message: string }> {
   const client = getSupabaseClient();
   if (!client) return { success: false, message: 'Supabase client is not configured.' };
 
   try {
-    const { data, error } = await client.auth.signUp({ email, password });
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+    });
     if (error) return { success: false, message: error.message };
-    return { success: true, message: 'Registration email sent or signed up successfully', user: data.user ?? undefined };
+    return { success: true, message: 'Password recovery email sent. Please check your inbox.' };
   } catch (err: unknown) {
-    return { success: false, message: err instanceof Error ? err.message : 'Registration failed' };
+    return { success: false, message: err instanceof Error ? err.message : 'Password reset failed' };
   }
 }
 
@@ -205,6 +254,25 @@ export async function signOutSupabase(): Promise<void> {
     await client.auth.signOut();
   } catch (err) {
     console.warn('Sign out error:', err);
+  }
+}
+
+/**
+ * Subscribe to Supabase Auth State changes
+ */
+export function onSupabaseAuthStateChange(
+  callback: (event: string, sessionUser: User | null) => void
+): (() => void) | null {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  try {
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
+      callback(event, session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  } catch {
+    return null;
   }
 }
 

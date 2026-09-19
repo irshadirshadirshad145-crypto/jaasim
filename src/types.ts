@@ -1,6 +1,14 @@
 export type SourceType = 'ticketing' | 'incident' | 'chat' | 'commit';
 
-export type AppPage = 'dashboard' | 'setup' | 'review' | 'handover' | 'export' | 'validation' | 'admin' | 'history';
+export type AppPage = 'dashboard' | 'setup' | 'review' | 'handover' | 'export' | 'validation' | 'admin' | 'history' | 'login' | 'signup';
+
+export interface AuthUserProfile {
+  id: string;
+  email: string;
+  name: string;
+  role?: string;
+  isLocalDemo?: boolean;
+}
 
 export interface AdminUser {
   id: string;

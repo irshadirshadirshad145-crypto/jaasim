@@ -12,8 +12,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   X,
+  LogOut,
+  LogIn,
 } from 'lucide-react';
-import { AppPage, ShiftSetupConfig } from '../types';
+import { AppPage, ShiftSetupConfig, AuthUserProfile } from '../types';
 
 interface SidebarProps {
   currentPage: AppPage;
@@ -23,6 +25,8 @@ interface SidebarProps {
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
   carriedCount?: number;
+  currentUser?: AuthUserProfile | null;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -33,6 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
   carriedCount = 0,
+  currentUser,
+  onLogout,
 }) => {
   const navItems: {
     id: AppPage;
@@ -219,21 +225,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Sidebar Footer: Active Operator Info */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/40 shrink-0">
+        {/* Sidebar Footer: Active Operator & Auth Info */}
+        <div className="p-4 border-t border-slate-800 bg-slate-950/40 shrink-0 space-y-2">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-indigo-400 text-xs font-bold">
-              {config.employeeName ? config.employeeName.charAt(0).toUpperCase() : 'O'}
+            <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-indigo-400 text-xs font-bold shrink-0">
+              {currentUser?.name
+                ? currentUser.name.charAt(0).toUpperCase()
+                : config.employeeName
+                ? config.employeeName.charAt(0).toUpperCase()
+                : 'O'}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-200 truncate">
-                {config.employeeName || 'Operations Engineer'}
+                {currentUser?.name || config.employeeName || 'Operations Engineer'}
               </p>
-              <p className="text-2xs text-slate-500 truncate">
-                {config.employeeRole || 'Operations Lead'}
+              <p className="text-2xs text-slate-400 truncate">
+                {currentUser?.email || config.employeeRole || 'Operations Lead'}
               </p>
             </div>
           </div>
+
+          {currentUser ? (
+            <div className="flex items-center justify-between pt-1 text-3xs text-slate-400">
+              <span className="flex items-center text-emerald-400 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1"></span>
+                Auth: Online
+              </span>
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="hover:text-rose-400 flex items-center transition-colors"
+                >
+                  <LogOut className="w-3 h-3 mr-1" />
+                  Sign Out
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => onNavigate('login')}
+                className="w-full inline-flex items-center justify-center px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-2xs font-medium transition-colors"
+              >
+                <LogIn className="w-3 h-3 mr-1 text-indigo-400" />
+                Sign In to Save Records
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>
