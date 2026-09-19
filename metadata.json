@@ -1,0 +1,8 @@
+{
+  "name": "Shift Handover Note Generator",
+  "description": "Automate shift handover notes from real or realistic ticketing, incident logs, chats, and commit histories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
